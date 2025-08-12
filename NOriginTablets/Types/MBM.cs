@@ -88,7 +88,7 @@ public class Mbm : List<MbmEntry?>
       // Skip the 0xFFFF terminator.
       entryData = entryData.Take(entryData.Length - 2).ToArray();
       var controlCodes = GetControlCodes(entryData);
-      Add(new MbmEntry(entryData, controlCodes));
+      Add(new MbmEntry(entryIndex, entryData, controlCodes));
       EntryIds.Add(entryIndex);
       reader.BaseStream.Seek(storedPosition, SeekOrigin.Begin);
     }

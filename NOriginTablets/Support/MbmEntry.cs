@@ -4,12 +4,13 @@ using System.Text;
 
 namespace OriginTablets.Support;
 
-public class MbmEntry(byte[] data, List<MbmControlCode> controlCodes)
+public class MbmEntry(int index, byte[] data, List<MbmControlCode> controlCodes)
 {
+  public int Index { get; } = index;
   private byte[] Data { get; } = data;
-  private List<MbmControlCode> ControlCodes { get; } = controlCodes;
+  public List<MbmControlCode> ControlCodes { get; } = controlCodes;
 
-  public delegate string Formatter(MbmControlCode controlCode);
+  public delegate string Formatter(MbmEntry entry, MbmControlCode controlCode);
   
   public Formatter NoArgsFormatter { get; set; } = DefaultNoArgsControlCodeFormatter;
   public Formatter ShortArgsFormatter { get; set; } = DefaultShortArgsControlCodeFormatter;
@@ -28,17 +29,17 @@ public class MbmEntry(byte[] data, List<MbmControlCode> controlCodes)
         var controlCode = ControlCodes.First(cc => cc.Position == position);
         if (controlCode.HasShortArguments)
         {
-          buffer.Append(ShortArgsFormatter(controlCode));
+          buffer.Append(ShortArgsFormatter(this, controlCode));
           position += 2 + (2 * controlCode.ShortArguments.Count);
         }
         else if (controlCode.HasIntArguments)
         {
-          buffer.Append(IntArgsFormatter(controlCode));
+          buffer.Append(IntArgsFormatter(this, controlCode));
           position += 2 + (4 * controlCode.IntArguments.Count);
         }
         else if (controlCode.HasStringArgument)
         {
-          buffer.Append(StringArgFormatter(controlCode));
+          buffer.Append(StringArgFormatter(this, controlCode));
           var lengthMultiplier = controlCode.Type == 0x12 // 0x12 is telop set (immediate)
             ? 2 // SJIS
             : 1; // ASCII
@@ -53,7 +54,7 @@ public class MbmEntry(byte[] data, List<MbmControlCode> controlCodes)
         }
         else
         {
-          buffer.Append(NoArgsFormatter(controlCode));
+          buffer.Append(NoArgsFormatter(this, controlCode));
           position += 2;
         }
       }
@@ -67,24 +68,24 @@ public class MbmEntry(byte[] data, List<MbmControlCode> controlCodes)
     return buffer.ToString().Normalize(NormalizationForm.FormKC);
   }
 
-  private static string DefaultNoArgsControlCodeFormatter(MbmControlCode controlCode)
+  public static string DefaultNoArgsControlCodeFormatter(MbmEntry entry, MbmControlCode controlCode)
   {
     return $"[{controlCode.Type:X2}]";
   }
 
-  private static string DefaultShortArgsControlCodeFormatter(MbmControlCode controlCode)
+  public static string DefaultShortArgsControlCodeFormatter(MbmEntry entry, MbmControlCode controlCode)
   {
     return $"[{controlCode.Type:X2}: {string.Join(", ", controlCode.ShortArguments
       .Select(ia => $"0x{ia.Value:X4}"))}]";
   }
 
-  private static string DefaultIntArgsControlCodeFormatter(MbmControlCode controlCode)
+  public static string DefaultIntArgsControlCodeFormatter(MbmEntry entry, MbmControlCode controlCode)
   {
     return $"[{controlCode.Type:X2}: {string.Join(", ", controlCode.IntArguments
       .Select(ia => $"0x{ia.Value:X4}"))}]";
   }
 
-  private static string DefaultStringArgControlCodeFormatter(MbmControlCode controlCode)
+  public static string DefaultStringArgControlCodeFormatter(MbmEntry entry, MbmControlCode controlCode)
   {
     return $"[{controlCode.Type:X2}: \"{controlCode.StringArgument}\"]";
   }
